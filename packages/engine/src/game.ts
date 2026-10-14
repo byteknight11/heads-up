@@ -257,6 +257,10 @@ export function applyAction(state: GameState, seat: Seat, action: Action): GameS
     }
   }
 
+  // A player facing an all-in opponent with nothing left to call has no decision to make.
+  h.pending = h.pending.filter(
+    (p) => s.stacks[p] > 0 && !(s.stacks[other(p)] === 0 && h.bets[p] >= h.bets[other(p)]),
+  );
   return h.pending.length === 0 ? endStreet(s) : s;
 }
 

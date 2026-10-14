@@ -124,6 +124,16 @@ describe('betting', () => {
     expect(g.stacks).toEqual([60, 140]);
   });
 
+  it('skips the blind when a short button calls all-in', () => {
+    // Button has 1 chip and calls the 2-chip blind all-in: nothing is left to decide.
+    let g: GameState = { ...createGame({ firstButton: 0 }), stacks: [1, 199], handNumber: 1 };
+    g = startHand(g, { deck: ACES_WIN });
+    g = applyAction(g, 0, { type: 'call' });
+    expect(g.status).not.toBe('in_hand');
+    expect(g.lastHand).toMatchObject({ pot: 2, winners: [0], showdown: true });
+    expect(g.stacks).toEqual([2, 198]);
+  });
+
   it('does not reopen raising after a short all-in', () => {
     // Seat 1 (blind) has 9 chips. Button raises to 6, blind shoves to 9 (a raise of 3 < 4).
     let g: GameState = { ...createGame({ firstButton: 0 }), stacks: [191, 9] };
