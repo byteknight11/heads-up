@@ -39,6 +39,8 @@ export function useGameSocket(serverUrl: string): GameSocket {
   const [deadline, setDeadline] = useState<number | null>(null);
   const [ended, setEnded] = useState<GameEnd | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   useEffect(() => {
     let closed = false;
@@ -49,7 +51,13 @@ export function useGameSocket(serverUrl: string): GameSocket {
       switch (msg.type) {
         case 'hello':
           setMe(msg.user);
-          setPhase((p) => (p === 'connecting' ? 'idle' : p));
+          if (!msg.inGame && phaseRef.current === 'playing') {
+            // The game ended while we were disconnected: leave the stale table.
+            setError('Your game ended while you were away. Check your profile for the result.');
+            setPhase('idle');
+          } else if (phaseRef.current === 'connecting') {
+            setPhase('idle');
+          }
           break;
         case 'queue.joined':
           setEnded(null);
@@ -80,7 +88,6 @@ export function useGameSocket(serverUrl: string): GameSocket {
           break;
         case 'error':
           setError(msg.message);
-          setTimeout(() => setError(null), 4000);
           break;
       }
     };
@@ -96,7 +103,11 @@ export function useGameSocket(serverUrl: string): GameSocket {
         socket.onopen = () => (retry = 0);
         socket.onmessage = (e) => onMessage(JSON.parse(e.data as string) as ServerMessage);
         socket.onclose = (e) => {
-          if (closed || e.code === 4000) return; // 4000: replaced by another tab
+          if (closed) return;
+          if (e.code === 4000) {
+            setError('Heads Up is open in another tab. Reload this page to play here.');
+            return;
+          }
           setPhase((p) => (p === 'queued' ? 'idle' : p));
           timer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 10_000));
         };
@@ -112,6 +123,12 @@ export function useGameSocket(serverUrl: string): GameSocket {
       ws.current?.close();
     };
   }, [serverUrl]);
+
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 6000);
+    return () => clearTimeout(t);
+  }, [error]);
 
   const send = useCallback((msg: object) => {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(msg));

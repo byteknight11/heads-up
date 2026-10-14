@@ -145,9 +145,14 @@ function Seat(props: { name: string; rating: number; stack: number; bet: number;
 function ActionBar({ legal, pot, onAct }: { legal: NonNullable<PlayerView['legal']>; pot: number; onAct: (a: Action) => void }) {
   const min = legal.minRaiseTo;
   const max = legal.maxRaiseTo;
-  const [amount, setAmount] = useState(min ?? 0);
-  useEffect(() => setAmount(min ?? 0), [min, max]);
-  const clamp = (n: number) => (min === null || max === null ? n : Math.min(max, Math.max(min, Math.round(n))));
+  // `amount` is what the player typed; it is clamped to the legal range only when used,
+  // so typing "25" isn't forced up to the minimum after the first keystroke.
+  const [typed, setTyped] = useState(String(min ?? 0));
+  useEffect(() => setTyped(String(min ?? 0)), [min, max]);
+  const clamp = (n: number) =>
+    min === null || max === null ? n : Math.min(max, Math.max(min, Number.isFinite(n) ? Math.round(n) : min));
+  const amount = clamp(Number(typed));
+  const setAmount = (n: number) => setTyped(String(clamp(n)));
 
   return (
     <div className="actions">
@@ -167,7 +172,15 @@ function ActionBar({ legal, pot, onAct }: { legal: NonNullable<PlayerView['legal
       {min !== null && max !== null && min < max && (
         <div className="row sizing">
           <input type="range" min={min} max={max} value={amount} onChange={(e) => setAmount(Number(e.target.value))} aria-label="Bet size" />
-          <input type="number" min={min} max={max} value={amount} onChange={(e) => setAmount(clamp(Number(e.target.value)))} aria-label="Bet amount" />
+          <input
+            type="number"
+            min={min}
+            max={max}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            onBlur={() => setTyped(String(amount))}
+            aria-label="Bet amount"
+          />
           <button className="small" onClick={() => setAmount(clamp(pot / 2))}>½ pot</button>
           <button className="small" onClick={() => setAmount(clamp(pot))}>Pot</button>
         </div>
