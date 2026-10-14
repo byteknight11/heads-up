@@ -21,7 +21,9 @@ export async function buildApp(opts: AppOptions) {
   app.get('/health', async () => ({ ok: true }));
 
   app.get('/users/:id', async (req, reply) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const params = z.object({ id: z.string().uuid() }).safeParse(req.params);
+    if (!params.success) return reply.code(404).send({ error: 'not found' });
+    const { id } = params.data;
     const user = await opts.store.findUserById(id);
     if (!user) return reply.code(404).send({ error: 'not found' });
     const history = await opts.store.history(id);

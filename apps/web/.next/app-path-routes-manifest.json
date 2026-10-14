@@ -1,0 +1,8 @@
+{
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/api/token/route": "/api/token",
+  "/_not-found/page": "/_not-found",
+  "/icon.svg/route": "/icon.svg",
+  "/page": "/",
+  "/profile/[id]/page": "/profile/[id]"
+}

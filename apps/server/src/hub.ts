@@ -39,7 +39,7 @@ export class Hub {
     // One socket per player: a new tab replaces the old one.
     this.sockets.get(user.id)?.close(4000, 'replaced by a new connection');
     this.sockets.set(user.id, ws);
-    this.send(user.id, { type: 'hello', user: publicPlayer(user) });
+    this.send(user.id, { type: 'hello', user: publicPlayer(user), inGame: this.tables.has(user.id) });
     this.tables.get(user.id)?.resync(user.id);
 
     ws.on('message', (data) => void this.onMessage(user.id, data.toString()));
