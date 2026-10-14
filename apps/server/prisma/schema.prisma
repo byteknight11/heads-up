@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  username    String   @unique
+  email       String   @unique
+  rating      Int      @default(1200)
+  gamesPlayed Int      @default(0) @map("games_played")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  gamesAsPlayer1 Game[] @relation("player1")
+  gamesAsPlayer2 Game[] @relation("player2")
+
+  @@map("users")
+}
+
+enum GameStatus {
+  active
+  finished
+  aborted
+}
+
+enum GameResult {
+  player1_win
+  player2_win
+  draw
+}
+
+enum EndReason {
+  threshold
+  forfeit
+  draw
+}
+
+model Game {
+  id                    String      @id @default(uuid()) @db.Uuid
+  player1Id             String      @map("player1_id") @db.Uuid
+  player2Id             String      @map("player2_id") @db.Uuid
+  status                GameStatus  @default(active)
+  result                GameResult?
+  endReason             EndReason?  @map("end_reason")
+  handsPlayed           Int         @default(0) @map("hands_played")
+  player1RatingBefore   Int         @map("player1_rating_before")
+  player2RatingBefore   Int         @map("player2_rating_before")
+  player1RatingChange   Int?        @map("player1_rating_change")
+  player2RatingChange   Int?        @map("player2_rating_change")
+  startedAt             DateTime    @default(now()) @map("started_at")
+  endedAt               DateTime?   @map("ended_at")
+
+  player1 User   @relation("player1", fields: [player1Id], references: [id])
+  player2 User   @relation("player2", fields: [player2Id], references: [id])
+  hands   Hand[]
+
+  @@index([player1Id])
+  @@index([player2Id])
+  @@map("games")
+}
+
+model Hand {
+  id                String   @id @default(uuid()) @db.Uuid
+  gameId            String   @map("game_id") @db.Uuid
+  number            Int
+  buttonPlayerId    String   @map("button_player_id") @db.Uuid
+  holeCards         Json     @map("hole_cards")
+  board             String[]
+  actions           Json
+  player1StackAfter Int      @map("player1_stack_after")
+  player2StackAfter Int      @map("player2_stack_after")
+
+  game Game @relation(fields: [gameId], references: [id])
+
+  @@unique([gameId, number])
+  @@map("hands")
+}

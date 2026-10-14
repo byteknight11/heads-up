@@ -1,0 +1,35 @@
+{
+  "name": "@heads-up/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.3.4",
+    "@heads-up/engine": "workspace:*",
+    "@prisma/client": "^6.19.3",
+    "fastify": "^5.12.7",
+    "jose": "^5.10.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
+    "prisma": "^6.19.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9",
+    "ws": "^8.22.0"
+  },
+  "exports": {
+    "./protocol": "./src/protocol.ts"
+  }
+}
