@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { rateGame } from '@heads-up/engine';
-import { type EndReason, type FinishedGame, type GameOutcome, type HandRecord, type Store, player1Score, toHistory } from './store.js';
+import { type EndReason, type FinishedGame, type GameOutcome, type HandRecord, type Store, player1Score, toHistory, withSuffix } from './store.js';
 
 export class PrismaStore implements Store {
   constructor(readonly db = new PrismaClient()) {}
@@ -9,8 +9,16 @@ export class PrismaStore implements Store {
     return this.db.user.findUnique({ where: { id } });
   }
 
-  upsertUser(email: string, username: string) {
-    return this.db.user.upsert({ where: { email }, update: {}, create: { email, username } });
+  async upsertUser(email: string, username: string) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.db.user.upsert({ where: { email }, update: {}, create: { email, username } });
+      } catch (e) {
+        const usernameTaken = e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002' && attempt < 5;
+        if (!usernameTaken) throw e;
+        username = withSuffix(username);
+      }
+    }
   }
 
   async createGame(player1Id: string, player2Id: string) {

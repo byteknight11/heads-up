@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { buildApp } from '../src/app.js';
+import { signToken } from '../src/auth.js';
 import type { ServerMessage } from '../src/protocol.js';
 import { MemoryStore } from '../src/store.js';
 
@@ -12,8 +13,8 @@ async function start(opts: { slowStore?: boolean } = {}) {
   const store = new MemoryStore();
   if (opts.slowStore) {
     // Simulates a database round trip during socket auth.
-    const find = store.findUserById.bind(store);
-    store.findUserById = async (id) => (await new Promise((r) => setTimeout(r, 50)), find(id));
+    const upsert = store.upsertUser.bind(store);
+    store.upsertUser = async (email, name) => (await new Promise((r) => setTimeout(r, 50)), upsert(email, name));
   }
   const { app } = await buildApp({ store, authSecret: SECRET, devLogin: true, hub: { matchIntervalMs: 10, tableOptions: { betweenHandsMs: 5 } } });
   await app.listen({ port: 0, host: '127.0.0.1' });
@@ -49,6 +50,16 @@ function bot(base: string, token: string) {
 }
 
 describe('server', () => {
+  it('creates a player on first connect from a web-signed token', async () => {
+    const { base, store } = await start();
+    const token = await signToken({ email: 'new@example.com', name: 'Ana María' }, SECRET);
+    const ws = new WebSocket(`ws://${base}/play?token=${token}`);
+    const hello = await new Promise<ServerMessage>((r) => ws.on('message', (raw) => r(JSON.parse(raw.toString()))));
+    ws.close();
+    expect(hello).toMatchObject({ type: 'hello', user: { username: 'Ana_Maria', rating: 1200 } });
+    expect([...store.users.values()].map((u) => u.email)).toEqual(['new@example.com']);
+  });
+
   it('rejects a socket without a valid token', async () => {
     const { base } = await start();
     const ws = new WebSocket(`ws://${base}/play?token=nope`);

@@ -22,6 +22,7 @@ describe.skipIf(!url)('PrismaStore', () => {
     const a = await store.upsertUser('a@x', 'alice');
     const b = await store.upsertUser('b@x', 'bob');
     expect(await store.upsertUser('a@x', 'ignored')).toMatchObject({ id: a.id, username: 'alice', rating: 1200 });
+    expect((await store.upsertUser('z@x', 'alice')).username).toMatch(/^alice_\d{4}$/);
 
     const gameId = await store.createGame(a.id, b.id);
     await store.saveHand(gameId, {

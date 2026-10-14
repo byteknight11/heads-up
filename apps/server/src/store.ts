@@ -39,9 +39,18 @@ export interface HistoryEntry {
   handsPlayed: number;
 }
 
+/** Turns a display name into a valid username: 3-20 letters, digits or underscores. */
+export function baseUsername(name: string): string {
+  const cleaned = name.normalize('NFKD').replace(/\p{M}/gu, '').replace(/[^a-zA-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 15);
+  return cleaned.length >= 3 ? cleaned : 'player';
+}
+
+/** A username variant for when the base one is taken. */
+export const withSuffix = (base: string) => `${base.slice(0, 15)}_${Math.floor(1000 + Math.random() * 9000)}`;
+
 export interface Store {
   findUserById(id: string): Promise<UserRecord | null>;
-  /** Finds the user with this email, creating them if new. */
+  /** Finds the user with this email, creating them if new (with a free variant of `username`). */
   upsertUser(email: string, username: string): Promise<UserRecord>;
   /** Records a new active game and both players' current ratings. */
   createGame(player1Id: string, player2Id: string): Promise<string>;
@@ -83,7 +92,8 @@ export class MemoryStore implements Store {
 
   async upsertUser(email: string, username: string) {
     for (const u of this.users.values()) if (u.email === email) return u;
-    for (const u of this.users.values()) if (u.username === username) throw new Error('username taken');
+    const taken = (name: string) => [...this.users.values()].some((u) => u.username === name);
+    while (taken(username)) username = withSuffix(username);
     const user: UserRecord = { id: randomUUID(), username, email, rating: STARTING_RATING, gamesPlayed: 0, createdAt: new Date() };
     this.users.set(user.id, user);
     return user;
