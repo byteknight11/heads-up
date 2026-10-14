@@ -3,7 +3,7 @@ import Fastify from 'fastify';
 import { z } from 'zod';
 import { signToken, verifyToken } from './auth.js';
 import { Hub, type HubOptions } from './hub.js';
-import type { Store } from './store.js';
+import { type Store, baseUsername } from './store.js';
 
 export interface AppOptions {
   store: Store;
@@ -34,8 +34,9 @@ export async function buildApp(opts: AppOptions) {
     // Local development only: sign in by username, no password.
     app.post('/dev/login', async (req) => {
       const { username } = z.object({ username: z.string().regex(/^[a-zA-Z0-9_]{3,20}$/) }).parse(req.body);
-      const user = await opts.store.upsertUser(`${username.toLowerCase()}@dev.local`, username);
-      return { token: await signToken({ sub: user.id }, opts.authSecret), user };
+      const email = `${username.toLowerCase()}@dev.local`;
+      const user = await opts.store.upsertUser(email, username);
+      return { token: await signToken({ email, name: username }, opts.authSecret), user };
     });
   }
 
@@ -46,7 +47,7 @@ export async function buildApp(opts: AppOptions) {
     socket.on('message', hold);
     const token = z.object({ token: z.string() }).safeParse(req.query);
     const claims = token.success ? await verifyToken(token.data.token, opts.authSecret) : null;
-    const user = claims && (await opts.store.findUserById(claims.sub));
+    const user = claims && (await opts.store.upsertUser(claims.email, baseUsername(claims.name)));
     socket.off('message', hold);
     if (!user) return socket.close(4401, 'unauthorized');
     hub.connect(user, socket, early);
