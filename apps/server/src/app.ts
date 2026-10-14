@@ -38,11 +38,16 @@ export async function buildApp(opts: AppOptions) {
   }
 
   app.get('/play', { websocket: true }, async (socket, req) => {
+    // Hold messages that arrive while the token is checked, so none are lost.
+    const early: string[] = [];
+    const hold = (data: unknown) => early.push(String(data));
+    socket.on('message', hold);
     const token = z.object({ token: z.string() }).safeParse(req.query);
     const claims = token.success ? await verifyToken(token.data.token, opts.authSecret) : null;
     const user = claims && (await opts.store.findUserById(claims.sub));
+    socket.off('message', hold);
     if (!user) return socket.close(4401, 'unauthorized');
-    hub.connect(user, socket);
+    hub.connect(user, socket, early);
   });
 
   return { app, hub };

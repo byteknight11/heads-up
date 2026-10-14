@@ -18,14 +18,14 @@ pnpm test
 cp apps/server/.env.example apps/server/.env   # then edit
 cd apps/server
 pnpm exec prisma migrate deploy                 # if using Postgres
-AUTH_SECRET=dev pnpm dev
+AUTH_SECRET=dev DEV_LOGIN=1 pnpm dev
 ```
 
 Set `TEST_DATABASE_URL` to also run the Postgres store tests.
 
 ## Socket protocol
 
-Connect to `ws://host/play?token=<jwt>`. The token is an HS256 JWT signed with `AUTH_SECRET` whose `sub` is the user id; in development, `POST /dev/login {"username"}` returns one.
+Connect to `ws://host/play?token=<jwt>`. The token is an HS256 JWT signed with `AUTH_SECRET` whose `sub` is the user id; in development, `POST /dev/login {"username"}` returns one when `DEV_LOGIN=1`.
 
 | Direction | Message | Payload |
 | --- | --- | --- |

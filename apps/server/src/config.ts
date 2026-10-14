@@ -2,7 +2,7 @@ export interface Config {
   port: number;
   authSecret: string;
   databaseUrl: string | undefined;
-  /** Enables POST /dev/login, which signs in by username without a password. */
+  /** Enables POST /dev/login, which signs in by username without a password. Never set in production. */
   devLogin: boolean;
 }
 
@@ -13,6 +13,6 @@ export function loadConfig(env = process.env): Config {
     port: Number(env.PORT ?? 8080),
     authSecret,
     databaseUrl: env.DATABASE_URL,
-    devLogin: env.NODE_ENV !== 'production',
+    devLogin: env.DEV_LOGIN === '1',
   };
 }

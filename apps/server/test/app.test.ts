@@ -8,8 +8,13 @@ const SECRET = 'test-secret';
 let close: (() => Promise<unknown>) | undefined;
 afterEach(async () => close?.());
 
-async function start() {
+async function start(opts: { slowStore?: boolean } = {}) {
   const store = new MemoryStore();
+  if (opts.slowStore) {
+    // Simulates a database round trip during socket auth.
+    const find = store.findUserById.bind(store);
+    store.findUserById = async (id) => (await new Promise((r) => setTimeout(r, 50)), find(id));
+  }
   const { app } = await buildApp({ store, authSecret: SECRET, devLogin: true, hub: { matchIntervalMs: 10, tableOptions: { betweenHandsMs: 5 } } });
   await app.listen({ port: 0, host: '127.0.0.1' });
   close = () => app.close();
@@ -73,6 +78,17 @@ describe('server', () => {
     expect(profile.user.gamesPlayed).toBe(1);
     expect(profile.history[0]).toMatchObject({ outcome: ea.outcome, ratingChange: ea.ratingChange, opponent: { username: 'bob' } });
     expect(ea.newRating).toBe(ea.outcome === 'win' ? 1216 : ea.outcome === 'loss' ? 1184 : 1200);
+  });
+
+  it('handles a message sent before the server says hello', async () => {
+    const { base } = await start({ slowStore: true });
+    const alice = await login(base, 'alice');
+    const ws = new WebSocket(`ws://${base}/play?token=${alice.token}`);
+    const msgs: ServerMessage[] = [];
+    ws.on('message', (raw) => msgs.push(JSON.parse(raw.toString())));
+    ws.on('open', () => ws.send(JSON.stringify({ type: 'queue.join' })));
+    await expect.poll(() => msgs.map((m) => m.type), { timeout: 2000 }).toEqual(['hello', 'queue.joined']);
+    ws.close();
   });
 
   it('resyncs a player who reconnects mid-game', async () => {
