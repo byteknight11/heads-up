@@ -70,4 +70,14 @@ describe('GameTable', () => {
     expect(s.store.users.get(s.b.id)!.rating).toBe(1184);
     expect(s.inbox[s.b.id]!.at(-1)).toMatchObject({ type: 'game.end', outcome: 'loss' });
   });
+
+  it('still ends the game, unrated, when the result cannot be saved', async () => {
+    const s = await setup();
+    tables.push(s.table);
+    s.store.finishGame = () => Promise.reject(new Error('database down'));
+    await s.table.start();
+    await s.table.resign(s.b.id);
+    await s.done;
+    expect(s.inbox[s.b.id]!.at(-1)).toMatchObject({ type: 'game.end', outcome: 'loss', ratingChange: null, newRating: 1200 });
+  }, 10_000);
 });

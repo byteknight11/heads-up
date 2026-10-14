@@ -65,6 +65,8 @@ export class Hub {
         if (table || this.starting.has(userId)) return this.send(userId, { type: 'error', message: 'already in a game' });
         const user = await this.opts.store.findUserById(userId);
         if (!user) return;
+        // The player may have disconnected or been paired while the lookup ran.
+        if (!this.sockets.has(userId) || this.tables.has(userId) || this.starting.has(userId)) return;
         this.matchmaker.join(userId, user.rating, Date.now());
         return this.send(userId, { type: 'queue.joined' });
       }
@@ -81,8 +83,10 @@ export class Hub {
 
   /** Pairs queued players and starts their tables. */
   async matchPlayers(now = Date.now()): Promise<void> {
-    for (const [a, b] of this.matchmaker.tick(now)) {
-      this.starting.add(a.userId).add(b.userId);
+    const pairs = this.matchmaker.tick(now);
+    // Mark every paired player before the first await, so none can re-queue meanwhile.
+    for (const [a, b] of pairs) this.starting.add(a.userId).add(b.userId);
+    for (const [a, b] of pairs) {
       try {
         await this.startTable(a.userId, b.userId);
       } catch (e) {
@@ -98,7 +102,7 @@ export class Hub {
 
   private async startTable(id1: string, id2: string): Promise<void> {
     const [u1, u2] = await Promise.all([this.opts.store.findUserById(id1), this.opts.store.findUserById(id2)]);
-    if (!u1 || !u2) return;
+    if (!u1 || !u2) throw new Error(`user not found: ${!u1 ? id1 : id2}`);
     const gameId = await this.opts.store.createGame(u1.id, u2.id);
     const table = new GameTable({
       ...this.opts.tableOptions,

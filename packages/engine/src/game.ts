@@ -283,9 +283,9 @@ function putIn(s: GameState, seat: Seat, chips: number): number {
   return moved;
 }
 
-function endStreet(s: GameState): GameState {
+/** Returns any uncalled part of a bet to its owner. */
+function returnUncalled(s: GameState): void {
   const h = s.hand!;
-  // Return any uncalled part of a bet.
   const diff = h.bets[0] - h.bets[1];
   if (diff !== 0) {
     const over: Seat = diff > 0 ? 0 : 1;
@@ -294,6 +294,11 @@ function endStreet(s: GameState): GameState {
     h.bets[over] -= excess;
     h.committed[over] -= excess;
   }
+}
+
+function endStreet(s: GameState): GameState {
+  const h = s.hand!;
+  returnUncalled(s);
 
   const someoneAllIn = s.stacks[0] === 0 || s.stacks[1] === 0;
   if (h.street === 'river' || someoneAllIn) {
@@ -322,6 +327,8 @@ function showdown(s: GameState): GameState {
 /** Awards the pot (winner null = split) and applies the elimination threshold. */
 function finishHand(s: GameState, winner: Seat | null, showdown = false): GameState {
   const h = s.hand!;
+  // After a fold, the winner's uncalled bet is theirs, not part of the pot.
+  returnUncalled(s);
   const pot = h.committed[0] + h.committed[1];
   let winners: Seat[];
   if (winner === null) {

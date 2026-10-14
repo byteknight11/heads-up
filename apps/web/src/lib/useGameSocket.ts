@@ -4,6 +4,8 @@ import type { Action } from '@heads-up/engine';
 import type { PlayerView, PublicPlayer, ServerMessage } from '@heads-up/server/protocol';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+const REPLACED = 'Heads Up is open in another tab. Reload this page to play here.';
+
 export type Phase = 'connecting' | 'idle' | 'queued' | 'playing' | 'ended';
 
 export interface Match {
@@ -105,7 +107,7 @@ export function useGameSocket(serverUrl: string): GameSocket {
         socket.onclose = (e) => {
           if (closed) return;
           if (e.code === 4000) {
-            setError('Heads Up is open in another tab. Reload this page to play here.');
+            setError(REPLACED);
             return;
           }
           setPhase((p) => (p === 'queued' ? 'idle' : p));
@@ -125,7 +127,8 @@ export function useGameSocket(serverUrl: string): GameSocket {
   }, [serverUrl]);
 
   useEffect(() => {
-    if (!error) return;
+    // The replaced-by-another-tab message stays: this tab can't play until it reloads.
+    if (!error || error === REPLACED) return;
     const t = setTimeout(() => setError(null), 6000);
     return () => clearTimeout(t);
   }, [error]);

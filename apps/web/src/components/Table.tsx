@@ -108,10 +108,14 @@ export function Table({ match, view, deadline, ended, onAct, onResign, onPlayAga
           <p className="muted">{reasonText(ended)}</p>
           <p className="rating">
             {ended.newRating}{' '}
-            <span className={ended.ratingChange! > 0 ? 'up' : ended.ratingChange! < 0 ? 'down' : ''}>
-              ({ended.ratingChange! > 0 ? '+' : ''}
-              {ended.ratingChange})
-            </span>
+            {ended.ratingChange === null ? (
+              <span className="muted">(unrated)</span>
+            ) : (
+              <span className={ended.ratingChange > 0 ? 'up' : ended.ratingChange < 0 ? 'down' : ''}>
+                ({ended.ratingChange > 0 ? '+' : ''}
+                {ended.ratingChange})
+              </span>
+            )}
           </p>
           <button className="primary" onClick={onPlayAgain}>
             Play again
