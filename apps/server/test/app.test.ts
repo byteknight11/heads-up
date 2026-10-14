@@ -102,6 +102,11 @@ describe('server', () => {
     ws.close();
   });
 
+  it('returns 404, not a server error, for a malformed profile id', async () => {
+    const { base } = await start();
+    expect((await fetch(`http://${base}/users/not-a-uuid`)).status).toBe(404);
+  });
+
   it('resyncs a player who reconnects mid-game', async () => {
     const { base } = await start();
     const [alice, bob] = await Promise.all([login(base, 'alice'), login(base, 'bob')]);
@@ -122,6 +127,7 @@ describe('server', () => {
     a.ws.close();
     const again = open(alice.token);
     await expect.poll(() => again.msgs.map((m) => m.type), { timeout: 2000 }).toEqual(['hello', 'match.found', 'state']);
+    expect(again.msgs[0]).toMatchObject({ inGame: true });
     again.ws.close();
     b.ws.close();
   });

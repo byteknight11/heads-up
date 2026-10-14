@@ -31,7 +31,8 @@ export type PlayerView = ReturnType<typeof playerView>;
 
 /** Messages the server sends. */
 export type ServerMessage =
-  | { type: 'hello'; user: PublicPlayer }
+  /** `inGame` tells a reconnecting client whether its game is still running. */
+  | { type: 'hello'; user: PublicPlayer; inGame: boolean }
   | { type: 'queue.joined' }
   | { type: 'queue.left' }
   | { type: 'match.found'; gameId: string; you: PublicPlayer; opponent: PublicPlayer; seat: 0 | 1 }
