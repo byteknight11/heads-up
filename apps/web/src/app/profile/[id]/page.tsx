@@ -32,7 +32,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       <h1>{user.username}</h1>
       <p className="rating">{user.rating}</p>
       <p className="muted">
-        {plural(user.gamesPlayed, 'game')} · {plural(wins, 'win')} · {plural(losses, 'loss', 'losses')}
+        {plural(user.gamesPlayed, 'game')} · {history.length < user.gamesPlayed && `last ${history.length}: `}
+        {plural(wins, 'win')} · {plural(losses, 'loss', 'losses')}
       </p>
       <RatingChart history={history} current={user.rating} />
       {history.length === 0 ? (

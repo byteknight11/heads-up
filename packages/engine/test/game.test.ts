@@ -78,7 +78,8 @@ describe('betting', () => {
     let g = startHand(createGame({ firstButton: 0 }), { deck: ACES_WIN });
     g = play(g, [0, { type: 'raise', amount: 6 }], [1, { type: 'fold' }]);
     expect(g.stacks).toEqual([102, 98]);
-    expect(g.lastHand).toMatchObject({ winners: [0], pot: 8, showdown: false });
+    // The uncalled 4 of the raise goes back to the raiser, so the pot is 2 + 2.
+    expect(g.lastHand).toMatchObject({ winners: [0], pot: 4, showdown: false });
   });
 
   it('costs the button nothing to fold preflop', () => {

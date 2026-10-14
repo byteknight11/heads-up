@@ -17,6 +17,8 @@ import type { EndReason, FinishedGame, GameOutcome, Store } from './store.js';
 export const ACTION_MS = 30_000;
 export const BETWEEN_HANDS_MS = 2_000;
 export const MAX_TIMEOUTS = 3;
+const FINISH_ATTEMPTS = 3;
+const FINISH_RETRY_MS = 1_000;
 
 export interface TableOptions {
   gameId: string;
@@ -24,7 +26,8 @@ export interface TableOptions {
   players: [PublicPlayer, PublicPlayer];
   store: Store;
   send: (userId: string, msg: ServerMessage) => void;
-  onEnd: (table: GameTable, finished: FinishedGame) => void;
+  /** `finished` is null when the result could not be saved. */
+  onEnd: (table: GameTable, finished: FinishedGame | null) => void;
   actionMs?: number;
   betweenHandsMs?: number;
   /** Overrides the shuffle; for tests. */
@@ -188,18 +191,35 @@ export class GameTable {
     const result = this.state.result!;
     const outcome: GameOutcome = result.winner === null ? 'draw' : result.winner === 0 ? 'player1_win' : 'player2_win';
     const reason: EndReason = result.reason;
-    const finished = await this.opts.store.finishGame(this.gameId, outcome, reason, result.handsPlayed);
+    let finished: FinishedGame | null = null;
+    try {
+      finished = await this.finishWithRetry(outcome, reason, result.handsPlayed);
+    } catch (e) {
+      // Still release both players; the game stays unrated and is aborted on the next restart.
+      console.error(`table ${this.gameId}: could not save the result:`, e);
+    }
     for (const seat of [0, 1] as const) {
-      const mine = seat === 0 ? finished.player1 : finished.player2;
+      const mine = finished && (seat === 0 ? finished.player1 : finished.player2);
       this.opts.send(this.players[seat].id, {
         type: 'game.end',
         gameId: this.gameId,
         result,
         outcome: result.winner === null ? 'draw' : result.winner === seat ? 'win' : 'loss',
-        ratingChange: mine.change,
-        newRating: mine.ratingAfter,
+        ratingChange: mine ? mine.change : null,
+        newRating: mine ? mine.ratingAfter : this.players[seat].rating,
       });
     }
     this.opts.onEnd(this, finished);
+  }
+
+  private async finishWithRetry(outcome: GameOutcome, reason: EndReason, handsPlayed: number): Promise<FinishedGame> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.opts.store.finishGame(this.gameId, outcome, reason, handsPlayed);
+      } catch (e) {
+        if (attempt >= FINISH_ATTEMPTS) throw e;
+        await new Promise((r) => setTimeout(r, FINISH_RETRY_MS));
+      }
+    }
   }
 }

@@ -50,6 +50,8 @@ export async function buildApp(opts: AppOptions) {
     const user = claims && (await opts.store.upsertUser(claims.email, baseUsername(claims.name)));
     socket.off('message', hold);
     if (!user) return socket.close(4401, 'unauthorized');
+    // The client may have gone while the token was checked; don't let a dead socket replace a live one.
+    if (socket.readyState !== socket.OPEN) return;
     hub.connect(user, socket, early);
   });
 
