@@ -13,7 +13,8 @@ export function expectedScore(rating: number, opponent: number): number {
  */
 export function rateGame(ratingA: number, ratingB: number, scoreA: 0 | 0.5 | 1, k = K_FACTOR) {
   const changeA = Math.round(k * (scoreA - expectedScore(ratingA, ratingB)));
-  const changeB = Math.round(k * (1 - scoreA - expectedScore(ratingB, ratingA)));
+  // B's change mirrors A's so rounding never creates or destroys a point.
+  const changeB = -changeA;
   const newA = Math.max(RATING_FLOOR, ratingA + changeA);
   const newB = Math.max(RATING_FLOOR, ratingB + changeB);
   return { newA, newB, changeA: newA - ratingA, changeB: newB - ratingB };

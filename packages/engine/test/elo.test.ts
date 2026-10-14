@@ -18,6 +18,15 @@ describe('elo', () => {
     expect(r.changeB).toBe(8);
   });
 
+  it('keeps changes zero-sum', () => {
+    for (let gap = -800; gap <= 800; gap += 7) {
+      for (const score of [0, 0.5, 1] as const) {
+        const r = rateGame(1500 + gap, 1500, score);
+        expect(r.changeA + r.changeB).toBe(0);
+      }
+    }
+  });
+
   it('never drops below the floor', () => {
     expect(rateGame(110, 110, 0)).toMatchObject({ newA: 100, changeA: -10 });
   });
