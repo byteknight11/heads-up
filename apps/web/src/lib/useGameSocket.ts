@@ -25,6 +25,8 @@ export interface GameSocket {
   deadline: number | null;
   ended: GameEnd | null;
   error: string | null;
+  /** Why the connection keeps failing, while it retries. */
+  connectProblem: string | null;
   joinQueue(): void;
   leaveQueue(): void;
   act(action: Action): void;
@@ -41,6 +43,7 @@ export function useGameSocket(serverUrl: string): GameSocket {
   const [deadline, setDeadline] = useState<number | null>(null);
   const [ended, setEnded] = useState<GameEnd | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [connectProblem, setConnectProblem] = useState<string | null>(null);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
@@ -102,7 +105,10 @@ export function useGameSocket(serverUrl: string): GameSocket {
         if (closed) return;
         const socket = new WebSocket(`${serverUrl}/play?token=${encodeURIComponent(token)}`);
         ws.current = socket;
-        socket.onopen = () => (retry = 0);
+        socket.onopen = () => {
+          retry = 0;
+          setConnectProblem(null);
+        };
         socket.onmessage = (e) => onMessage(JSON.parse(e.data as string) as ServerMessage);
         socket.onclose = (e) => {
           if (closed) return;
@@ -110,10 +116,13 @@ export function useGameSocket(serverUrl: string): GameSocket {
             setError(REPLACED);
             return;
           }
+          if (e.code === 4401) setConnectProblem('The game server did not accept this sign-in. Retrying…');
+          else if (retry >= 2) setConnectProblem("Can't reach the game server. Retrying…");
           setPhase((p) => (p === 'queued' ? 'idle' : p));
           timer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 10_000));
         };
       } catch {
+        if (retry >= 2) setConnectProblem("Can't get a game token from this site. Retrying…");
         timer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 10_000));
       }
     }
@@ -145,6 +154,7 @@ export function useGameSocket(serverUrl: string): GameSocket {
     deadline,
     ended,
     error,
+    connectProblem,
     joinQueue: () => send({ type: 'queue.join' }),
     leaveQueue: () => send({ type: 'queue.leave' }),
     act: (action) => send({ type: 'action', action }),

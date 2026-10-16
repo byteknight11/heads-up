@@ -7,7 +7,14 @@ import { Table } from './Table';
 export function Play({ serverUrl }: { serverUrl: string }) {
   const g = useGameSocket(serverUrl);
 
-  if (g.phase === 'connecting') return <div className="panel">Connecting…</div>;
+  if (g.phase === 'connecting') {
+    return (
+      <div className="panel">
+        Connecting…
+        {g.connectProblem && <p className="muted">{g.connectProblem}</p>}
+      </div>
+    );
+  }
 
   if ((g.phase === 'playing' || g.phase === 'ended') && g.match) {
     return (
